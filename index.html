@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro Civil | Chile City RP</title>
+<style>
+:root{--azul:#003366;--fondo:#f0f4fb;--blanco:#fff;}
+body{font-family:Arial,sans-serif;background:var(--fondo);margin:0;padding:20px;}
+h2{color:var(--azul);}
+.btn{background:var(--azul);color:white;padding:8px 12px;border:none;border-radius:6px;cursor:pointer;margin:4px;}
+.btn.red{background:#b22222;}
+.btn.secondary{background:#6b7fa6;}
+input, select{width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px solid #ccd6ea;}
+input[type="file"]{margin-top:6px;}
+.card{background:var(--blanco);padding:12px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:12px;}
+.foto-preview{width:120px;height:150px;background:#e9eef9;border:1px dashed #aebfdb;display:flex;align-items:center;justify-content:center;color:#556;margin-top:8px;border-radius:6px;overflow:hidden;}
+.foto-preview img{width:100%;height:100%;object-fit:cover;}
+.cedula-wrap{margin-top:20px;}
+.cedula{position:relative;background:linear-gradient(90deg,#e8f0ff 0%, #ffffff 60%);border:2px solid var(--azul);border-radius:12px;padding:18px;box-shadow:0 8px 22px rgba(0,0,0,0.12);font-size:14px;color:#033;margin-bottom:12px;}
+.cedula .flag{font-weight:700;color:var(--azul);text-align:center;letter-spacing:2px;margin-bottom:6px;}
+.cedula .photo{position:absolute;left:20px;top:50px;width:120px;height:150px;border:2px solid var(--azul);background:#f6f8ff;overflow:hidden;border-radius:6px;}
+.cedula .photo img{width:100%;height:100%;object-fit:cover;}
+.datos{margin-left:160px;padding-top:10px;}
+.dato-line{display:flex;gap:6px;margin-bottom:8px;align-items:center;}
+.label{width:120px;font-weight:700;color:var(--azul);}
+.valor{background:rgba(255,255,255,0.6);padding:6px 8px;border-radius:6px;min-width:150px;}
+.rut{position:absolute;right:18px;top:18px;background:var(--azul);color:white;padding:8px 10px;border-radius:6px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<h2>Registro Civil | Chile City RP</h2>
+
+<div id="pantallaInicio" class="card">
+  <button class="btn" id="btnCrearC">Crear Cédula</button>
+  <button class="btn" id="btnVerC" style="display:none;">Ver Cédula</button>
+  <button class="btn" id="btnPolicia">Entrar como Policía</button>
+  <button class="btn" id="btnModerador">Entrar como Moderador</button>
+</div>
+
+<div id="formDNI" class="card" style="display:none;">
+  <h3 style="color:var(--azul)">Formulario de Cédula</h3>
+  <label>Nombres</label><input id="nombres" type="text">
+  <label>Apellidos</label><input id="apellidos" type="text">
+  <label>Nacionalidad</label><input id="nacionalidad" type="text" value="Chilena">
+  <label>Género</label><select id="genero"><option>Masculino</option><option>Femenino</option></select>
+  <label>Fecha de nacimiento</label><input id="nacimiento" type="date">
+  <label>Usuario Discord</label><input id="usuarioDiscord" type="text">
+  <label>Foto</label><input id="foto" type="file" accept="image/*">
+  <div class="foto-preview" id="fotoPreviewForm"><span>Previsualización</span></div>
+  <button class="btn" id="btnGenerar">Generar Cédula</button>
+</div>
+
+<div id="modoPolicia" class="card" style="display:none;">
+  <h3>Modo Policía</h3>
+  <label>Buscar DNI por usuario:</label>
+  <input type="text" id="buscarUsuarioPol" placeholder="Usuario Discord">
+  <button class="btn" id="btnBuscarPol">Buscar</button>
+  <div id="dniPolicia"></div>
+  <button class="btn red" id="cerrarPolicia">Cerrar sesión</button>
+</div>
+
+<div id="modoModerador" class="card" style="display:none;">
+  <h3>Modo Moderador</h3>
+  <label>Buscar DNI por usuario:</label>
+  <input type="text" id="buscarUsuarioMod" placeholder="Usuario Discord">
+  <button class="btn" id="btnBuscarMod">Buscar</button>
+  <div id="dniModerador"></div>
+  <button class="btn red" id="cerrarMod">Cerrar sesión</button>
+</div>
+
+<div class="cedula-wrap" id="cedulaWrap"></div>
+
+<script>
+let cedulas = JSON.parse(localStorage.getItem('cedulas')||'[]');
+let usuarioActual='';
+
+// --- Utilidades ---
+function guardarCedulas(){localStorage.setItem('cedulas',JSON.stringify(cedulas));}
+function generarNumDocumento(){return Math.floor(100000000 + Math.random()*900000000).toString();}
+function generarRutConDV(){let r='';for(let i=0;i<(Math.random()<0.5?7:8);i++) r+=Math.floor(Math.random()*10);const rev=r.split('').reverse().map(n=>parseInt(n,10));let f=2,s=0;for(const d of rev){s+=d*f;f=f===7?2:f+1;}let m=11-(s%11),dv=m===11?'0':m===10?'K':String(m);const num=r.replace(/^0+/,'')||'0';return num.replace(/\B(?=(\d{3})+(?!\d))/g,".")+'-'+dv;}
+function fechaHoyYVencimiento(){const hoy=new Date(); const fv=new Date(hoy); fv.setFullYear(fv.getFullYear()+5); const fHoy=[String(hoy.getDate()).padStart(2,'0'),String(hoy.getMonth()+1).padStart(2,'0'),hoy.getFullYear()].join('-'); const fV=[String(fv.getDate()).padStart(2,'0'),String(fv.getMonth()+1).padStart(2,'0'),fv.getFullYear()].join('-'); return {emision:fHoy,vencimiento:fV};}
+
+function crearCedulaHTML(dni,modo){
+  const div=document.createElement('div'); div.className='cedula';
+  div.innerHTML=`<div class="flag">REPUBLICA DE CHILE</div>
+    <div class="rut">${dni.rut}</div>
+    <div class="photo"><img src="${dni.foto}"></div>
+    <div class="datos">
+      <div class="dato-line"><div class="label">Nombres:</div><div class="valor">${dni.nombres}</div></div>
+      <div class="dato-line"><div class="label">Apellidos:</div><div class="valor">${dni.apellidos}</div></div>
+      <div class="dato-line"><div class="label">Género:</div><div class="valor">${dni.genero}</div></div>
+      <div class="dato-line"><div class="label">Nacionalidad:</div><div class="valor">${dni.nacionalidad}</div></div>
+      <div class="dato-line"><div class="label">F. Nacimiento:</div><div class="valor">${dni.nacimiento}</div></div>
+      <div class="dato-line"><div class="label">N° Documento:</div><div class="valor">${dni.numdoc}</div></div>
+      <div class="dato-line"><div class="label">F. Emisión:</div><div class="valor">${dni.emision}</div></div>
+      <div class="dato-line"><div class="label">F. Vencimiento:</div><div class="valor">${dni.vencimiento}</div></div>
+    </div>`;
+  if(modo==='moderador'){
+    const btnDel=document.createElement('button'); btnDel.textContent='Eliminar'; btnDel.className='btn red';
+    btnDel.onclick=()=>{if(confirm('Eliminar DNI?')){cedulas.splice(cedulas.indexOf(dni),1);guardarCedulas();renderizarDNI(modo);actualizarBotonVerC(usuarioActual);}};
+    div.appendChild(btnDel);
+  }
+  return div;
+}
+
+function renderizarDNI(modo,filter=''){
+  const cont = modo==='policia'?document.getElementById('dniPolicia'):document.getElementById('dniModerador');
+  cont.innerHTML='';
+  cedulas.filter(d=>!filter||d.usuario.includes(filter)).forEach(d=>{cont.appendChild(crearCedulaHTML(d,modo));});
+}
+
+function actualizarBotonVerC(usuario){
+  const btnVer=document.getElementById('btnVerC');
+  if(cedulas.some(d=>d.usuario===usuario)){
+    btnVer.style.display='inline-block';
+    document.getElementById('btnCrearC').style.display='none';
+  } else {
+    btnVer.style.display='none';
+    document.getElementById('btnCrearC').style.display='inline-block';
+  }
+}
+
+// --- Previsualización foto ---
+document.getElementById('foto').addEventListener('change', e=>{
+  const file=e.target.files[0];
+  const preview=document.getElementById('fotoPreviewForm');
+  if(!file){preview.innerHTML='<span>Previsualización</span>'; return;}
+  const reader=new FileReader();
+  reader.onload=evt=>{preview.innerHTML=`<img src="${evt.target.result}">`;}
+  reader.readAsDataURL(file);
+});
+
+// --- Eventos ---
+document.getElementById('btnCrearC').onclick=()=>{
+  const usuarioInput=prompt('Ingresa tu usuario Discord:');
+  if(!usuarioInput) return alert('Debe ingresar usuario');
+  if(cedulas.some(d=>d.usuario===usuarioInput)) return alert('Ya tienes DNI creado. Espera a que un moderador lo elimine.');
+  usuarioActual=usuarioInput;
+  actualizarBotonVerC(usuarioActual);
+  document.getElementById('formDNI').style.display='block';
+  document.getElementById('pantallaInicio').style.display='none';
+}
+
+document.getElementById('btnGenerar').onclick=()=>{
+  const nombres=document.getElementById('nombres').value.trim();
+  const apellidos=document.getElementById('apellidos').value.trim();
+  const nacionalidad=document.getElementById('nacionalidad').value.trim()||'Chilena';
+  const genero=document.getElementById('genero').value;
+  const nacimiento=document.getElementById('nacimiento').value;
+  const usuario=document.getElementById('usuarioDiscord').value.trim();
+  const fotoFile=document.getElementById('foto').files[0];
+  if(!nombres||!apellidos||!nacimiento||!usuario||!fotoFile) return alert('Completa todos los campos.');
+  if(cedulas.some(d=>d.usuario===usuario)) return alert('Ya tienes DNI creado. Espera a que un moderador lo elimine.');
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const fechas=fechaHoyYVencimiento();
+    const dni={nombres,apellidos,nacionalidad,genero,nacimiento,usuario,foto:e.target.result,rut:generarRutConDV(),numdoc:generarNumDocumento(),emision:fechas.emision,vencimiento:fechas.vencimiento};
+    cedulas.push(dni); guardarCedulas();
+    document.getElementById('formDNI').style.display='none'; document.getElementById('pantallaInicio').style.display='block';
+    actualizarBotonVerC(usuario);
+    alert('Cédula creada exitosamente.');
+  };
+  reader.readAsDataURL(fotoFile);
+}
+
+document.getElementById('btnVerC').onclick=()=>{
+  const dni=cedulas.find(d=>d.usuario===usuarioActual);
+  if(!dni) return alert('No se encontró tu cédula.');
+  const wrap=document.getElementById('cedulaWrap'); wrap.innerHTML=''; wrap.appendChild(crearCedulaHTML(dni,'usuario'));
+}
+
+// --- Policía ---
+document.getElementById('btnPolicia').onclick=()=>{
+  const pass=prompt('Contraseña Policía:'); if(pass!=='CarabCl') return alert('Contraseña incorrecta');
+  usuarioActual=prompt('Ingresa tu usuario Discord:'); if(!usuarioActual) return alert('Debes ingresar usuario');
+  document.getElementById('pantallaInicio').style.display='none';
+  document.getElementById('modoPolicia').style.display='block';
+  renderizarDNI('policia');
+}
+document.getElementById('btnBuscarPol').onclick=()=>{
+  const filtro=document.getElementById('buscarUsuarioPol').value.trim();
+  renderizarDNI('policia',filtro);
+}
+document.getElementById('cerrarPolicia').onclick=()=>{
+  document.getElementById('modoPolicia').style.display='none';
+  document.getElementById('pantallaInicio').style.display='block';
+}
+
+// --- Moderador ---
+document.getElementById('btnModerador').onclick=()=>{
+  const pass=prompt('Contraseña Moderador:'); if(pass!=='Estrella2017') return alert('Contraseña incorrecta');
+  usuarioActual='moderador';
+  document.getElementById('pantallaInicio').style.display='none';
+  document.getElementById('modoModerador').style.display='block';
+  renderizarDNI('moderador');
+}
+document.getElementById('btnBuscarMod').onclick=()=>{
+  const filtro=document.getElementById('buscarUsuarioMod').value.trim();
+  renderizarDNI('moderador',filtro);
+}
+document.getElementById('cerrarMod').onclick=()=>{
+  document.getElementById('modoModerador').style.display='none';
+  document.getElementById('pantallaInicio').style.display='block';
+}
+
+// Inicializar botón Ver Cédula si ya existe
+if(usuarioActual) actualizarBotonVerC(usuarioActual);
+</script>
+</body>
+</html>
