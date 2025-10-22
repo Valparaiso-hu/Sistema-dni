@@ -1,247 +1,445 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registro Civil | Chile City RP</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Registro Civil | Chile City RP (Global)</title>
 <style>
 :root{--azul:#003366;--fondo:#f0f4fb;--blanco:#fff;}
-body{font-family:Arial,sans-serif;background:var(--fondo);margin:0;padding:20px;}
-h2{color:var(--azul);}
+body{font-family:Arial,Helvetica,sans-serif;background:var(--fondo);margin:0;padding:20px;}
+.container{max-width:1100px;margin:0 auto;}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.card{background:var(--blanco);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-top:12px;}
+h1{color:var(--azul);margin:0;}
 .btn{background:var(--azul);color:white;padding:8px 12px;border:none;border-radius:6px;cursor:pointer;margin:4px;}
 .btn.red{background:#b22222;}
-.btn.secondary{background:#6b7fa6;}
-input, select{width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px solid #ccd6ea;}
-.card{background:var(--blanco);padding:12px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.1);margin-bottom:12px;}
+.input, select{width:100%;padding:8px;border-radius:6px;border:1px solid #ccd6ea;margin-top:6px;}
+.row{display:flex;gap:10px;align-items:center;}
+.col{flex:1;}
+.left-col{width:380px;}
 .foto-preview{width:120px;height:150px;background:#e9eef9;border:1px dashed #aebfdb;display:flex;align-items:center;justify-content:center;color:#556;margin-top:8px;border-radius:6px;overflow:hidden;}
 .foto-preview img{width:100%;height:100%;object-fit:cover;}
-.cedula-wrap{margin-top:20px;}
 .cedula{position:relative;background:linear-gradient(90deg,#e8f0ff 0%, #ffffff 60%);border:2px solid var(--azul);border-radius:12px;padding:18px;box-shadow:0 8px 22px rgba(0,0,0,0.12);font-size:14px;color:#033;margin-bottom:12px;}
 .cedula .flag{font-weight:700;color:var(--azul);text-align:center;letter-spacing:2px;margin-bottom:6px;}
-.cedula .photo{position:absolute;left:20px;top:50px;width:120px;height:150px;border:2px solid var(--azul);background:#f6f8ff;overflow:hidden;border-radius:6px;}
+.cedula .photo{position:absolute;left:18px;top:52px;width:120px;height:150px;border:2px solid var(--azul);background:#f6f8ff;overflow:hidden;border-radius:6px;}
 .cedula .photo img{width:100%;height:100%;object-fit:cover;}
-.datos{margin-left:160px;padding-top:10px;}
+.datos{margin-left:154px;padding-top:10px;}
 .dato-line{display:flex;gap:6px;margin-bottom:8px;align-items:center;}
 .label{width:120px;font-weight:700;color:var(--azul);}
 .valor{background:rgba(255,255,255,0.6);padding:6px 8px;border-radius:6px;min-width:150px;}
 .rut{position:absolute;right:18px;top:18px;background:var(--azul);color:white;padding:8px 10px;border-radius:6px;font-weight:700;}
+.table{width:100%;border-collapse:collapse;margin-top:10px;}
+.table th,.table td{border-bottom:1px solid #e6e9ef;padding:8px;text-align:left;font-size:13px;}
+.small{font-size:12px;color:#666;}
+@media(max-width:980px){.row{flex-direction:column}.left-col{width:100%}}
 </style>
 </head>
 <body>
+<div class="container">
+  <div class="header">
+    <h1>Registro Civil | Chile City RP</h1>
+    <div>
+      <span class="small">Bases: local + global (para Policía/Moderador)</span>
+    </div>
+  </div>
 
-<h2>Registro Civil | Chile City RP</h2>
+  <!-- LOGIN -->
+  <div id="loginCard" class="card">
+    <h3>Inicia sesión</h3>
+    <div class="row">
+      <div class="col left-col">
+        <label class="small">Usuario (ej: nombre#1234)</label>
+        <input id="loginUser" class="input" type="text" placeholder="usuario#0001">
+      </div>
+      <div class="col left-col">
+        <label class="small">Contraseña (crea una aquí)</label>
+        <input id="loginPass" class="input" type="password" placeholder="Tu contraseña (no uses la de Discord)">
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <button id="btnLogin" class="btn">Iniciar sesión</button>
+      <button id="btnCreateAccount" class="btn">Crear cuenta</button>
+      <span class="small" style="margin-left:10px;color:#b22222;"><b>⚠️ No uses tu contraseña de Discord</b></span>
+    </div>
+  </div>
 
-<!-- LOGIN / REGISTRO -->
-<div id="pantallaLogin" class="card">
-  <h3>Inicia sesión o crea una cuenta</h3>
-  <label>Usuario de Discord</label>
-  <input id="loginUsuario" type="text" placeholder="Ej: usuario#0001">
-  <label>Contraseña</label>
-  <input id="loginPassword" type="password">
-  <p style="color:#b22222;font-size:12px;"><b>⚠️ No utilices tu contraseña de Discord.</b></p>
-  <button class="btn" id="btnLogin">Iniciar Sesión</button>
-  <button class="btn secondary" id="btnRegistro">Crear Cuenta</button>
+  <!-- PANEL PRINCIPAL -->
+  <div id="mainPanel" class="card" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div><strong>Sesión:</strong> <span id="usuarioLabel"></span></div>
+      <div>
+        <button id="btnCreateDNI" class="btn">Crear Cédula</button>
+        <button id="btnViewDNI" class="btn" style="display:none;">Ver mi Cédula</button>
+        <button id="btnPolice" class="btn">Entrar como Policía</button>
+        <button id="btnMod" class="btn">Entrar como Moderador</button>
+        <button id="btnLogout" class="btn red">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORMULARIO CREAR CEDULA (LOCAL + push a Firebase) -->
+  <div id="formCard" class="card" style="display:none;">
+    <h3>Crear Cédula</h3>
+    <div class="row">
+      <div class="left-col">
+        <label>Nombres</label><input id="nombres" class="input" type="text">
+        <label>Apellidos</label><input id="apellidos" class="input" type="text">
+        <label>Nacionalidad</label><input id="nacionalidad" class="input" type="text" value="Chilena">
+        <label>Género</label>
+        <select id="genero" class="input">
+          <option>Masculino</option><option>Femenino</option><option>Otro</option>
+        </select>
+        <label>Fecha de nacimiento</label><input id="fn" class="input" type="date">
+      </div>
+      <div style="width:160px;">
+        <label>Foto (galería)</label><input id="foto" type="file" accept="image/*" style="margin-top:6px;">
+        <div class="foto-preview" id="previewFoto"><span class="small">Previsualización</span></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <button id="btnGenerate" class="btn">Generar Cédula</button>
+      <button id="btnCancelCreate" class="btn secondary">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PARA MOSTRAR CEDULAS / LISTAS -->
+  <div id="viewer" class="card" style="display:none;"></div>
+
+  <!-- MODO POLICIA -->
+  <div id="policeCard" class="card" style="display:none;">
+    <h3>Modo Policía — Buscar DNIs</h3>
+    <div class="row">
+      <input id="buscarPol" class="input col" placeholder="Buscar por usuario (ej: nombre#1234)">
+      <button id="btnBuscarPol" class="btn">Buscar</button>
+      <button id="btnClosePol" class="btn red">Cerrar</button>
+    </div>
+    <div id="listaPol" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- MODO MODERADOR -->
+  <div id="modCard" class="card" style="display:none;">
+    <h3>Modo Moderador — Buscar / Eliminar DNIs</h3>
+    <div class="row">
+      <input id="buscarMod" class="input col" placeholder="Buscar por usuario">
+      <button id="btnBuscarMod" class="btn">Buscar</button>
+      <button id="btnCloseMod" class="btn red">Cerrar</button>
+    </div>
+    <div id="listaMod" style="margin-top:12px;"></div>
+  </div>
+
 </div>
 
-<!-- PANTALLA PRINCIPAL -->
-<div id="pantallaInicio" class="card" style="display:none;">
-  <button class="btn" id="btnCrearC">Crear Cédula</button>
-  <button class="btn" id="btnVerC" style="display:none;">Ver Cédula</button>
-  <button class="btn" id="btnPolicia">Entrar como Policía</button>
-  <button class="btn" id="btnModerador">Entrar como Moderador</button>
-  <button class="btn red" id="btnCerrarSesion">Cerrar Sesión</button>
-</div>
-
-<!-- FORMULARIO DE CÉDULA -->
-<div id="formDNI" class="card" style="display:none;">
-  <h3>Formulario de Cédula</h3>
-  <label>Nombres</label><input id="nombres" type="text">
-  <label>Apellidos</label><input id="apellidos" type="text">
-  <label>Nacionalidad</label><input id="nacionalidad" type="text" value="Chilena">
-  <label>Género</label><select id="genero"><option>Masculino</option><option>Femenino</option></select>
-  <label>Fecha de nacimiento</label><input id="nacimiento" type="date">
-  <label>Foto</label><input id="foto" type="file" accept="image/*">
-  <div class="foto-preview" id="fotoPreviewForm"><span>Previsualización</span></div>
-  <button class="btn" id="btnGenerar">Generar Cédula</button>
-</div>
-
-<!-- MODO POLICÍA -->
-<div id="modoPolicia" class="card" style="display:none;">
-  <h3>Modo Policía</h3>
-  <input type="text" id="buscarUsuarioPol" placeholder="Buscar usuario">
-  <button class="btn" id="btnBuscarPol">Buscar</button>
-  <div id="dniPolicia"></div>
-  <button class="btn red" id="cerrarPolicia">Cerrar sesión</button>
-</div>
-
-<!-- MODO MODERADOR -->
-<div id="modoModerador" class="card" style="display:none;">
-  <h3>Modo Moderador</h3>
-  <input type="text" id="buscarUsuarioMod" placeholder="Buscar usuario">
-  <button class="btn" id="btnBuscarMod">Buscar</button>
-  <div id="dniModerador"></div>
-  <button class="btn red" id="cerrarMod">Cerrar sesión</button>
-</div>
-
-<div class="cedula-wrap" id="cedulaWrap"></div>
+<!-- Firebase (compat para facilidad) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-let usuarios = JSON.parse(localStorage.getItem('usuarios')||'[]');
-let cedulas = JSON.parse(localStorage.getItem('cedulas')||'[]');
-let usuarioActual = null;
+/* ====== CONFIGURA AQUÍ TU FIREBASE ======
+  - Crea un proyecto en Firebase (console.firebase.google.com)
+  - Habilita Realtime Database (modo prueba para desarrollo)
+  - Copia/pega tu firebaseConfig en el objeto a continuación
+*/
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  databaseURL: "https://TU_PROYECTO.firebaseio.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_ID",
+  appId: "TU_APP_ID"
+};
 
-// Guardado local
-function guardarUsuarios(){localStorage.setItem('usuarios',JSON.stringify(usuarios));}
-function guardarCedulas(){localStorage.setItem('cedulas',JSON.stringify(cedulas));}
+// Inicializar Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const dniRef = db.ref('dni'); // nodo donde guardamos DNIs globales
 
-// Generadores
-function generarNumDocumento(){return Math.floor(100000000 + Math.random()*900000000);}
-function generarRutConDV(){let r='';for(let i=0;i<(Math.random()<0.5?7:8);i++)r+=Math.floor(Math.random()*10);const rev=r.split('').reverse().map(n=>parseInt(n,10));let f=2,s=0;for(const d of rev){s+=d*f;f=f===7?2:f+1;}let m=11-(s%11),dv=m===11?'0':m===10?'K':String(m);return r+'-'+dv;}
-function fechaHoyYVencimiento(){const h=new Date();const v=new Date(h);v.setFullYear(v.getFullYear()+5);return{emision:h.toLocaleDateString(),vencimiento:v.toLocaleDateString()};}
+// --- Estado local ---
+let cuentas = JSON.parse(localStorage.getItem('cuentas')||'[]'); // {user,pass}
+let cedulasLocal = JSON.parse(localStorage.getItem('cedulas')||'[]'); // cédulas locales
+let usuarioActual = localStorage.getItem('usuarioActual') || null;
 
-// Mostrar solo botones correspondientes
-function actualizarBotonesLogin(){
-  const btnLogin=document.getElementById('btnLogin');
-  const btnRegistro=document.getElementById('btnRegistro');
-  if(usuarios.length===0){
-    btnLogin.style.display='none';
-    btnRegistro.style.display='inline-block';
-  }else{
-    btnLogin.style.display='inline-block';
-    btnRegistro.style.display='none';
+// --- UI refs ---
+const loginCard = document.getElementById('loginCard');
+const mainPanel = document.getElementById('mainPanel');
+const usuarioLabel = document.getElementById('usuarioLabel');
+const btnCreateAccount = document.getElementById('btnCreateAccount');
+const btnLogin = document.getElementById('btnLogin');
+
+const btnCreateDNI = document.getElementById('btnCreateDNI');
+const btnViewDNI = document.getElementById('btnViewDNI');
+const btnPolice = document.getElementById('btnPolice');
+const btnMod = document.getElementById('btnMod');
+const btnLogout = document.getElementById('btnLogout');
+
+const formCard = document.getElementById('formCard');
+const previewFoto = document.getElementById('previewFoto');
+const fotoInput = document.getElementById('foto');
+
+const viewer = document.getElementById('viewer');
+
+const policeCard = document.getElementById('policeCard');
+const listaPol = document.getElementById('listaPol');
+const buscarPol = document.getElementById('buscarPol');
+
+const modCard = document.getElementById('modCard');
+const listaMod = document.getElementById('listaMod');
+const buscarMod = document.getElementById('buscarMod');
+
+/* ----------------- FUNCIONES UTILES ----------------- */
+function guardarLocal(){
+  localStorage.setItem('cuentas', JSON.stringify(cuentas));
+  localStorage.setItem('cedulas', JSON.stringify(cedulasLocal));
+  if(usuarioActual) localStorage.setItem('usuarioActual', usuarioActual);
+  else localStorage.removeItem('usuarioActual');
+}
+function generarNumDocumento(){ return Math.floor(100000000 + Math.random()*900000000).toString(); }
+function generarRutConDV(){
+  const length = Math.random()<0.5 ? 7 : 8;
+  let rutBase=''; for(let i=0;i<length;i++) rutBase += Math.floor(Math.random()*10);
+  const reversed = rutBase.split('').reverse().map(n=>parseInt(n,10));
+  let factor=2, suma=0;
+  for(const d of reversed){ suma += d*factor; factor = factor===7?2:factor+1; }
+  const mod = 11 - (suma % 11);
+  let dv = (mod===11)?'0':(mod===10)?'K':String(mod);
+  const num = rutBase.replace(/^0+/,'') || '0';
+  const withDots = num.replace(/\B(?=(\d{3})+(?!\d))/g,".");
+  return `${withDots}-${dv}`;
+}
+function fechaHoyYVencimiento(){
+  const hoy = new Date(); const fv = new Date(hoy); fv.setFullYear(fv.getFullYear()+5);
+  const f = d => String(d).padStart(2,'0');
+  return { emision: `${f(hoy.getDate())}-${f(hoy.getMonth()+1)}-${hoy.getFullYear()}`,
+           vencimiento: `${f(fv.getDate())}-${f(fv.getMonth()+1)}-${fv.getFullYear()}` };
+}
+
+/* ----------------- LOGIN / CUENTAS ----------------- */
+function actualizarUIporSesion(){
+  if(usuarioActual){
+    loginCard.style.display='none';
+    mainPanel.style.display='block';
+    usuarioLabel.textContent = usuarioActual;
+    // botón ver cédula si ya tiene
+    const existeLocal = cedulasLocal.some(c=>c.usuario===usuarioActual);
+    btnViewDNI.style.display = existeLocal ? 'inline-block' : 'none';
+    btnCreateDNI.style.display = existeLocal ? 'none' : 'inline-block';
+  } else {
+    loginCard.style.display='block';
+    mainPanel.style.display='none';
   }
 }
+btnCreateAccount.onclick = ()=>{
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  if(!user||!pass) return alert('Completa usuario y contraseña.');
+  if(cuentas.some(c=>c.user===user)) return alert('Ese usuario ya existe.');
+  cuentas.push({user,pass}); guardarLocal();
+  alert('Cuenta creada. Ahora inicia sesión.');
+};
+btnLogin.onclick = ()=>{
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  if(!user||!pass) return alert('Completa usuario y contraseña.');
+  const acc = cuentas.find(c=>c.user===user && c.pass===pass);
+  if(!acc){
+    if(confirm('No existe esa cuenta. ¿Deseas crearla ahora con esa contraseña?')){
+      cuentas.push({user,pass}); usuarioActual=user; guardarLocal(); actualizarUIporSesion();
+      alert('Cuenta creada e iniciada.');
+    } else return alert('Credenciales inválidas.');
+  } else {
+    usuarioActual = user; guardarLocal(); actualizarUIporSesion();
+  }
+};
+btnLogout.onclick = ()=>{ usuarioActual=null; guardarLocal(); actualizarUIporSesion(); };
 
-// --- LOGIN / REGISTRO ---
-document.getElementById('btnLogin').onclick=()=>{
-  const user=document.getElementById('loginUsuario').value.trim();
-  const pass=document.getElementById('loginPassword').value.trim();
-  const u=usuarios.find(x=>x.user===user && x.pass===pass);
-  if(!u) return alert('Usuario o contraseña incorrectos');
-  usuarioActual=user;
-  document.getElementById('pantallaLogin').style.display='none';
-  document.getElementById('pantallaInicio').style.display='block';
-  actualizarBotonVerC(user);
-}
+/* ----------------- CREAR CÉDULA (LOCAL y PUSH a Firebase) ----------------- */
+fotoInput.addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(!f){ previewFoto.innerHTML = '<span class="small">Previsualización</span>'; return; }
+  const r = new FileReader();
+  r.onload = ev => previewFoto.innerHTML = `<img src="${ev.target.result}">`;
+  r.readAsDataURL(f);
+});
 
-document.getElementById('btnRegistro').onclick=()=>{
-  const user=document.getElementById('loginUsuario').value.trim();
-  const pass=document.getElementById('loginPassword').value.trim();
-  if(!user||!pass) return alert('Completa ambos campos');
-  if(usuarios.some(u=>u.user===user)) return alert('Ese usuario ya existe');
-  usuarios.push({user,pass}); guardarUsuarios();
-  alert('Cuenta creada exitosamente. Ahora inicia sesión.');
-  actualizarBotonesLogin();
-}
+document.getElementById('btnCreateDNI').onclick = ()=>{
+  if(!usuarioActual) return alert('Debes iniciar sesión primero.');
+  if(cedulasLocal.some(c=>c.usuario===usuarioActual)) return alert('Ya tienes una cédula creada.');
+  formCard.style.display='block';
+  viewer.style.display='none';
+  window.scrollTo(0,0);
+};
+document.getElementById('btnCancelCreate').onclick = ()=>{
+  formCard.style.display='none';
+  if(usuarioActual) mainPanel.style.display='block';
+};
 
-// --- Cerrar sesión ---
-document.getElementById('btnCerrarSesion').onclick=()=>{
-  usuarioActual=null;
-  document.getElementById('pantallaInicio').style.display='none';
-  document.getElementById('pantallaLogin').style.display='block';
-}
+document.getElementById('btnGenerate').onclick = ()=>{
+  if(!usuarioActual) return alert('Inicia sesión.');
+  const nombres = document.getElementById('nombres').value.trim();
+  const apellidos = document.getElementById('apellidos').value.trim();
+  const nacionalidad = document.getElementById('nacionalidad').value.trim() || 'Chilena';
+  const genero = document.getElementById('genero').value;
+  const nacimiento = document.getElementById('fn').value;
+  const fotoFile = fotoInput.files[0];
+  if(!nombres||!apellidos||!nacimiento||!fotoFile) return alert('Completa todos los campos y selecciona foto.');
 
-// --- Crear / Ver Cédula ---
-function actualizarBotonVerC(user){
-  const tiene=cedulas.some(d=>d.usuario===user);
-  document.getElementById('btnVerC').style.display=tiene?'inline-block':'none';
-  document.getElementById('btnCrearC').style.display=tiene?'none':'inline-block';
-}
-document.getElementById('btnCrearC').onclick=()=>{
-  document.getElementById('formDNI').style.display='block';
-  document.getElementById('pantallaInicio').style.display='none';
-}
-document.getElementById('btnGenerar').onclick=()=>{
-  const n=document.getElementById('nombres').value.trim();
-  const a=document.getElementById('apellidos').value.trim();
-  const nac=document.getElementById('nacionalidad').value.trim();
-  const g=document.getElementById('genero').value;
-  const fn=document.getElementById('nacimiento').value;
-  const foto=document.getElementById('foto').files[0];
-  if(!n||!a||!nac||!fn||!foto) return alert('Completa todos los campos.');
-  if(cedulas.some(c=>c.usuario===usuarioActual)) return alert('Ya tienes una cédula.');
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const f=fechaHoyYVencimiento();
-    const dni={usuario:usuarioActual,nombres:n,apellidos:a,nacionalidad:nac,genero:g,nacimiento:fn,foto:e.target.result,rut:generarRutConDV(),numdoc:generarNumDocumento(),emision:f.emision,vencimiento:f.vencimiento};
-    cedulas.push(dni); guardarCedulas();
-    document.getElementById('formDNI').style.display='none';
-    document.getElementById('pantallaInicio').style.display='block';
-    actualizarBotonVerC(usuarioActual);
-    alert('Cédula creada correctamente.');
+  // leer imagen y luego guardar local y en firebase
+  const rdr = new FileReader();
+  rdr.onload = ev => {
+    const fechas = fechaHoyYVencimiento();
+    const dni = {
+      usuario: usuarioActual,
+      nombres, apellidos, nacionalidad, genero, nacimiento,
+      foto: ev.target.result,
+      rut: generarRutConDV(),
+      numdoc: generarNumDocumento(),
+      emision: fechas.emision,
+      vencimiento: fechas.vencimiento
+    };
+    // guardar local
+    cedulasLocal.push(dni);
+    guardarLocal();
+    // subir a Firebase (con owner = usuarioActual)
+    const nuevaRef = dniRef.push();
+    nuevaRef.set(Object.assign({}, dni), err=>{
+      if(err) alert('Error subiendo a base global: '+err);
+    });
+
+    formCard.style.display='none';
+    mainPanel.style.display='block';
+    actualizarUIporSesion();
+    alert('Cédula creada y subida (Policía/Moderador podrán verla).');
   };
-  reader.readAsDataURL(foto);
-}
-document.getElementById('btnVerC').onclick=()=>{
-  const d=cedulas.find(x=>x.usuario===usuarioActual);
-  if(!d) return alert('No se encontró la cédula.');
-  const c=document.getElementById('cedulaWrap'); c.innerHTML='';
-  c.appendChild(crearCedulaHTML(d));
-}
+  rdr.readAsDataURL(fotoFile);
+};
 
-// --- Crear HTML Cédula ---
+document.getElementById('btnViewDNI').onclick = ()=>{
+  const dni = cedulasLocal.find(c=>c.usuario===usuarioActual);
+  if(!dni) return alert('No tienes cédula local.');
+  viewer.style.display='block';
+  viewer.innerHTML = '';
+  viewer.appendChild(crearCedulaHTML(dni,'usuario'));
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+
+/* ----------------- CREAR HTML CÉDULA ----------------- */
 function crearCedulaHTML(dni,modo){
-  const div=document.createElement('div'); div.className='cedula';
-  div.innerHTML=`<div class="flag">REPUBLICA DE CHILE</div>
-  <div class="rut">${dni.rut}</div>
-  <div class="photo"><img src="${dni.foto}"></div>
-  <div class="datos">
-    <div class="dato-line"><div class="label">Nombres:</div><div class="valor">${dni.nombres}</div></div>
-    <div class="dato-line"><div class="label">Apellidos:</div><div class="valor">${dni.apellidos}</div></div>
-    <div class="dato-line"><div class="label">Género:</div><div class="valor">${dni.genero}</div></div>
-    <div class="dato-line"><div class="label">Nacionalidad:</div><div class="valor">${dni.nacionalidad}</div></div>
-    <div class="dato-line"><div class="label">F. Nacimiento:</div><div class="valor">${dni.nacimiento}</div></div>
-    <div class="dato-line"><div class="label">N° Documento:</div><div class="valor">${dni.numdoc}</div></div>
-    <div class="dato-line"><div class="label">Emisión:</div><div class="valor">${dni.emision}</div></div>
-    <div class="dato-line"><div class="label">Vencimiento:</div><div class="valor">${dni.vencimiento}</div></div>
-  </div>`;
+  const div = document.createElement('div'); div.className='cedula';
+  div.innerHTML = `<div class="flag">REPUBLICA DE CHILE</div>
+    <div class="rut">${dni.rut}</div>
+    <div class="photo"><img src="${dni.foto}"></div>
+    <div class="datos">
+      <div class="dato-line"><div class="label">Nombres:</div><div class="valor">${dni.nombres}</div></div>
+      <div class="dato-line"><div class="label">Apellidos:</div><div class="valor">${dni.apellidos}</div></div>
+      <div class="dato-line"><div class="label">Género:</div><div class="valor">${dni.genero}</div></div>
+      <div class="dato-line"><div class="label">Nacionalidad:</div><div class="valor">${dni.nacionalidad}</div></div>
+      <div class="dato-line"><div class="label">F. Nacimiento:</div><div class="valor">${dni.nacimiento}</div></div>
+      <div class="dato-line"><div class="label">N° Documento:</div><div class="valor">${dni.numdoc}</div></div>
+      <div class="dato-line"><div class="label">F. Emisión:</div><div class="valor">${dni.emision}</div></div>
+      <div class="dato-line"><div class="label">F. Vencimiento:</div><div class="valor">${dni.vencimiento}</div></div>
+    </div>`;
   if(modo==='moderador'){
-    const b=document.createElement('button');
-    b.textContent='Eliminar';
-    b.className='btn red';
-    b.onclick=()=>{if(confirm('Eliminar DNI?')){cedulas.splice(cedulas.indexOf(dni),1);guardarCedulas();renderizarDNI(modo);}};
-    div.appendChild(b);
+    const btn = document.createElement('button'); btn.className='btn red'; btn.textContent='Eliminar (mod)';
+    btn.onclick = ()=>{
+      if(confirm('Eliminar este DNI de la base global?')) {
+        // buscamos la entrada global por usuario y numdoc (hay posibilidad de duplicados; se elimina el primero que coincida)
+        dniRef.orderByChild('usuario').equalTo(dni.usuario).once('value', snap=>{
+          let foundKey = null;
+          snap.forEach(child=>{
+            const val = child.val();
+            if(val.numdoc === dni.numdoc && val.rut === dni.rut){
+              foundKey = child.key;
+            }
+          });
+          if(foundKey){
+            dniRef.child(foundKey).remove().then(()=>{
+              alert('El DNI fue eliminado de la base global.');
+            }).catch(err=>alert('Error al eliminar: '+err));
+          } else alert('No se encontró la entrada global para eliminar.');
+        });
+      }
+    };
+    div.appendChild(btn);
   }
   return div;
 }
 
-// --- Policía / Moderador ---
-document.getElementById('btnPolicia').onclick=()=>{
-  const p=prompt('Contraseña Policía:'); if(p!=='CarabCl') return alert('Contraseña incorrecta');
-  document.getElementById('pantallaInicio').style.display='none';
-  document.getElementById('modoPolicia').style.display='block';
-  renderizarDNI('policia');
+/* ----------------- MODO POLICIA (READ-ONLY global) ----------------- */
+btnPolice.onclick = ()=>{
+  const pass = prompt('Contraseña Policía:');
+  if(pass !== 'CarabCl') return alert('Contraseña incorrecta.');
+  // mostrar panel policía
+  policeCard.style.display='block';
+  mainPanel.style.display='none';
+  listaPol.innerHTML = '<div class="small">Cargando...</div>';
+  // cargar todos desde Firebase once
+  dniRef.once('value', snap=>{
+    renderListPol(snap.val());
+  });
+};
+document.getElementById('btnBuscarPol').onclick = ()=>{
+  const q = buscarPol.value.trim();
+  dniRef.orderByChild('usuario').startAt(q).endAt(q+"\uf8ff").once('value', snap=>{
+    renderListPol(snap.val());
+  });
+};
+document.getElementById('btnClosePol').onclick = ()=>{
+  policeCard.style.display='none';
+  mainPanel.style.display='block';
+};
+function renderListPol(data){
+  listaPol.innerHTML = '';
+  if(!data){ listaPol.innerHTML = '<div class="small">No hay DNIs registrados en la base global.</div>'; return; }
+  Object.values(data).forEach(d=>{
+    const item = crearCedulaHTML(d,'policia');
+    listaPol.appendChild(item);
+  });
 }
-document.getElementById('btnBuscarPol').onclick=()=>{
-  renderizarDNI('policia',document.getElementById('buscarUsuarioPol').value.trim());
-}
-document.getElementById('cerrarPolicia').onclick=()=>{
-  document.getElementById('modoPolicia').style.display='none';
-  document.getElementById('pantallaInicio').style.display='block';
-}
-document.getElementById('btnModerador').onclick=()=>{
-  const p=prompt('Contraseña Moderador:'); if(p!=='Estrella2017') return alert('Contraseña incorrecta');
-  document.getElementById('pantallaInicio').style.display='none';
-  document.getElementById('modoModerador').style.display='block';
-  renderizarDNI('moderador');
-}
-document.getElementById('btnBuscarMod').onclick=()=>{
-  renderizarDNI('moderador',document.getElementById('buscarUsuarioMod').value.trim());
-}
-document.getElementById('cerrarMod').onclick=()=>{
-  document.getElementById('modoModerador').style.display='none';
-  document.getElementById('pantallaInicio').style.display='block';
+function crearCedulaHTML_pol(d){
+  return crearCedulaHTML(d,'policia');
 }
 
-// --- Mostrar DNIs ---
-function renderizarDNI(modo,filtro=''){
-  const cont=modo==='policia'?document.getElementById('dniPolicia'):document.getElementById('dniModerador');
-  cont.innerHTML='';
-  cedulas.filter(d=>!filtro||d.usuario.includes(filtro)).forEach(d=>cont.appendChild(crearCedulaHTML(d,modo)));
+/* ----------------- MODO MODERADOR (READ + DELETE) ----------------- */
+btnMod.onclick = ()=>{
+  const pass = prompt('Contraseña Moderador:');
+  if(pass !== 'Estrella2017') return alert('Contraseña incorrecta.');
+  modCard.style.display='block';
+  mainPanel.style.display='none';
+  listaMod.innerHTML = '<div class="small">Cargando...</div>';
+  dniRef.once('value', snap=> renderListMod(snap.val()) );
+};
+document.getElementById('btnBuscarMod').onclick = ()=>{
+  const q = buscarMod.value.trim();
+  dniRef.orderByChild('usuario').startAt(q).endAt(q+"\uf8ff").once('value', snap=> renderListMod(snap.val()) );
+};
+document.getElementById('btnCloseMod').onclick = ()=>{
+  modCard.style.display='none';
+  mainPanel.style.display='block';
+};
+function renderListMod(data){
+  listaMod.innerHTML = '';
+  if(!data){ listaMod.innerHTML = '<div class="small">No hay DNIs registrados en la base global.</div>'; return; }
+  // mostrar cada entrada con botón eliminar
+  Object.entries(data).forEach(([key,d])=>{
+    const div = document.createElement('div');
+    div.style.marginBottom = '10px';
+    div.appendChild(crearCedulaHTML(d,'moderador'));
+    // la propia crearCedulaHTML ya añade botón eliminar si modo==='moderador' y elimina buscando por rut/numdoc
+    listaMod.appendChild(div);
+  });
 }
 
-// Inicializar estado del login
-actualizarBotonesLogin();
+/* ----------------- ESCUCHA EN TIEMPO REAL (opcional) ----------------- */
+/* Podemos escuchar cambios en la base global y actualizar listas automáticamente. */
+dniRef.on('value', snap=>{
+  // actualizar vistas abiertas (police/mod)
+  if(policeCard.style.display==='block') renderListPol(snap.val());
+  if(modCard.style.display==='block') renderListMod(snap.val());
+});
+
+/* ----------------- INICIALIZAR UI ----------------- */
+actualizarUIporSesion();
+guardarLocal();
 </script>
 </body>
 </html>
