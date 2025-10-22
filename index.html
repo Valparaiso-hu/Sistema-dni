@@ -107,10 +107,15 @@ h1{color:var(--azul);margin:0 0 12px 0;}
 const BIN_ID = "68f92e0843b1c97be978feac";
 const MASTER_KEY = "$2a$10$kkNzvw3iucR3WD0BGh0Sd.4dkN.tZN1.RPdUVD2hF7WOoqvlt2o1O";
 const ACCESS_KEY = "$2a$10$/PzN80nW9uIjbxjrr/5qzO2eV8CTTaINpQg6BNT1ITK4RGo.BkbRC";
+
 const JSONBIN_GET = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest`;
 const JSONBIN_PUT = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const JSONBIN_HEADERS_GET = { "X-Master-Key": MASTER_KEY };
-const JSONBIN_HEADERS_PUT = { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY, "X-Bin-Versioning": "false" };
+const JSONBIN_HEADERS_PUT = { 
+  "Content-Type": "application/json", 
+  "X-Master-Key": MASTER_KEY, 
+  "X-Bin-Versioning": "false" 
+};
 
 /* ========== ESTADO ========== */
 let cuentas = [];
@@ -146,6 +151,7 @@ async function cargarDesdeNube(){
     const record = j.record || {};
     cuentas = record.cuentas || [];
     cedulas = record.cedulas || [];
+    // salvar cache local
     localStorage.setItem('cedulasCache', JSON.stringify(cedulas));
     setStatus('Datos cargados desde la nube.');
     return true;
@@ -164,11 +170,13 @@ async function guardarEnNube(){
     const body = JSON.stringify({ cuentas, cedulas });
     const r = await fetch(JSONBIN_PUT, { method:'PUT', headers: JSONBIN_HEADERS_PUT, body });
     if(!r.ok) throw new Error('HTTP '+r.status);
+    // actualizar cache
     localStorage.setItem('cedulasCache', JSON.stringify(cedulas));
     setStatus('Guardado en la nube.');
     return true;
   } catch (err) {
     console.error('guardarEnNube error', err);
+    // guardar en cache si falla
     localStorage.setItem('cedulasCache', JSON.stringify(cedulas));
     setStatus('Error guardando en la nube. Cambios guardados en cache local.');
     return false;
@@ -179,6 +187,7 @@ async function guardarEnNube(){
 function actualizarHeaderUsuario(){
   document.getElementById('userLabel').textContent = localDiscordUser ? `Último usuario: ${localDiscordUser}` : 'Sin usuario';
 }
+
 function actualizarBotonPrincipal(){
   if (!localDiscordUser) {
     document.getElementById('btnViewDNI').style.display = 'none';
@@ -190,8 +199,148 @@ function actualizarBotonPrincipal(){
   document.getElementById('btnCreateDNI').style.display = existe ? 'none' : 'inline-block';
 }
 
-/* Resto del código permanece igual (crearCedulaDOM, renderListaPolicia, renderListaModerador, eventos) */
+function crearCedulaDOM(d, modo){
+  const div = document.createElement('div'); div.className='cedula';
+  div.innerHTML = `
+    <div class="flag">REPUBLICA DE CHILE</div>
+    <div class="rut">${d.rut}</div>
+    <div class="usuario-d">Discord: ${d.usuario || ''}</div>
+    <div class="photo"><img src="${d.foto}" alt="foto"></div>
+    <div class="datos">
+      <div class="dato-line"><div class="label">Nombres:</div><div class="valor">${d.nombres}</div></div>
+      <div class="dato-line"><div class="label">Apellidos:</div><div class="valor">${d.apellidos}</div></div>
+      <div class="dato-line"><div class="label">Género:</div><div class="valor">${d.genero}</div></div>
+      <div class="dato-line"><div class="label">Nacionalidad:</div><div class="valor">${d.nacionalidad}</div></div>
+      <div class="dato-line"><div class="label">F. Nacimiento:</div><div class="valor">${d.nacimiento}</div></div>
+      <div class="dato-line"><div class="label">N° Documento:</div><div class="valor">${d.numdoc}</div></div>
+      <div class="dato-line"><div class="label">F. Emisión:</div><div class="valor">${d.emision}</div></div>
+      <div class="dato-line"><div class="label">F. Vencimiento:</div><div class="valor">${d.vencimiento}</div></div>
+    </div>
+  `;
+  if (modo === 'moderador') {
+    const btn = document.createElement('button'); btn.className='btn red'; btn.textContent='Eliminar';
+    btn.onclick = async () => {
+      if (!confirm(`Eliminar cédula de ${d.usuario}?`)) return;
+      cedulas = cedulas.filter(x => !(String(x.usuario||'').trim().toLowerCase() === String(d.usuario||'').trim().toLowerCase() && x.numdoc === d.numdoc));
+      await guardarEnNube();
+      renderListaModerador();
+      actualizarBotonPrincipal();
+    };
+    div.appendChild(btn);
+  }
+  return div;
+}
 
+function renderListaPolicia(filtro=''){
+  const cont = document.getElementById('listaPol'); cont.innerHTML = '';
+  const list = cedulas.filter(c => !filtro || String(c.usuario||'').toLowerCase().includes(String(filtro).toLowerCase()));
+  if (!list.length) { cont.innerHTML = '<div class="small">No hay resultados.</div>'; return; }
+  list.forEach(d => cont.appendChild(crearCedulaDOM(d,'policia')));
+}
+function renderListaModerador(filtro=''){
+  const cont = document.getElementById('listaMod'); cont.innerHTML = '';
+  const list = cedulas.filter(c => !filtro || String(c.usuario||'').toLowerCase().includes(String(filtro).toLowerCase()));
+  if (!list.length) { cont.innerHTML = '<div class="small">No hay resultados.</div>'; return; }
+  list.forEach(d => cont.appendChild(crearCedulaDOM(d,'moderador')));
+}
+
+/* ========== EVENTOS ========== */
+document.getElementById('btnCreateDNI').addEventListener('click', async ()=>{
+  await cargarDesdeNube();
+  document.getElementById('formCard').style.display='block';
+  document.getElementById('viewer').style.display='none';
+  document.getElementById('btnCreateDNI').disabled = false;
+});
+
+document.getElementById('btnCancelDNI').addEventListener('click', ()=>{
+  document.getElementById('formCard').style.display='none';
+});
+
+document.getElementById('foto').addEventListener('change', e=>{
+  const file = e.target.files[0], prev = document.getElementById('fotoPreview');
+  if (!file) return prev.innerHTML = '<span class="small">Previsualización</span>';
+  const reader = new FileReader();
+  reader.onload = ev => prev.innerHTML = `<img src="${ev.target.result}" alt="foto">`;
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btnGenDNI').addEventListener('click', async ()=>{
+  const discordUser = document.getElementById('discordUserInput').value.trim();
+  const n = document.getElementById('nombres').value.trim();
+  const a = document.getElementById('apellidos').value.trim();
+  const nac = document.getElementById('nacionalidad').value.trim() || 'Chilena';
+  const g = document.getElementById('genero').value;
+  const fn = document.getElementById('fechaNac').value;
+  const file = document.getElementById('foto').files[0];
+  if (!discordUser) return alert('Ingresa tu usuario de Discord (ej: nombre#1234).');
+  if (!n||!a||!fn||!file) return alert('Completa todos los campos.');
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    await cargarDesdeNube();
+    if (cedulas.some(c => String(c.usuario||'').trim().toLowerCase() === discordUser.trim().toLowerCase())) {
+      return alert('Ya hay una cédula registrada con ese usuario de Discord.');
+    }
+    const fechas = fechaHoyYVencimiento();
+    const nuevo = {
+      usuario: discordUser.trim(),
+      nombres: n, apellidos: a,
+      nacionalidad: nac, genero: g,
+      nacimiento: fn,
+      foto: e.target.result,
+      rut: generarRutConDV(),
+      numdoc: generarNumDocumento(),
+      emision: fechas.emision,
+      vencimiento: fechas.vencimiento,
+      creadoEn: new Date().toISOString()
+    };
+    cedulas.push(nuevo);
+    const ok = await guardarEnNube();
+    localDiscordUser = discordUser.trim();
+    localStorage.setItem('discordUser', localDiscordUser);
+    actualizarHeaderUsuario();
+    actualizarBotonPrincipal();
+    document.getElementById('formCard').style.display='none';
+    if (ok) alert('Cédula creada y subida a la nube.');
+    else alert('Cédula creada localmente (no se pudo subir a la nube).');
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btnViewDNI').addEventListener('click', async ()=>{
+  await cargarDesdeNube();
+  if (!localDiscordUser) return alert('No hay usuario de Discord guardado localmente.');
+  const d = cedulas.find(c => String(c.usuario||'').trim().toLowerCase() === String(localDiscordUser).trim().toLowerCase());
+  if (!d) return alert('No tienes cédula registrada (verifica usuario).');
+  const v = document.getElementById('viewer'); v.innerHTML = ''; v.appendChild(crearCedulaDOM(d,'usuario')); v.style.display='block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+document.getElementById('btnPolice').addEventListener('click', async ()=>{
+  const pass = prompt('Contraseña Policía:');
+  if (pass !== 'CarabCl') return alert('Contraseña incorrecta');
+  await cargarDesdeNube();
+  document.getElementById('polCard').style.display='block';
+  document.getElementById('viewer').style.display='none';
+  document.getElementById('mainPanel').scrollIntoView();
+  renderListaPolicia();
+});
+document.getElementById('btnBuscarPol').addEventListener('click', ()=> renderListaPolicia(document.getElementById('buscarPol').value.trim()));
+document.getElementById('btnClosePol').addEventListener('click', ()=>{
+  document.getElementById('polCard').style.display='none';
+});
+
+document.getElementById('btnMod').addEventListener('click', async ()=>{
+  const pass = prompt('Contraseña Moderador:');
+  if (pass !== 'Estrella2017') return alert('Contraseña incorrecta');
+  await cargarDesdeNube();
+  document.getElementById('modCard').style.display='block';
+  document.getElementById('viewer').style.display='none';
+  renderListaModerador();
+});
+document.getElementById('btnBuscarMod').addEventListener('click', ()=> renderListaModerador(document.getElementById('buscarMod').value.trim()));
+document.getElementById('btnCloseMod').addEventListener('click', ()=> { document.getElementById('modCard').style.display='none'; });
+
+/* ========== INICIALIZACIÓN ========== */
 (async function init(){
   await cargarDesdeNube();
   if (localDiscordUser) actualizarHeaderUsuario();
