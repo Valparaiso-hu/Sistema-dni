@@ -85,15 +85,29 @@ input, select{width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px
 <div class="cedula-wrap" id="cedulaWrap"></div>
 
 <script>
-let cuentas = JSON.parse(localStorage.getItem('cuentas')||'[]');
-let cedulas = JSON.parse(localStorage.getItem('cedulas')||'[]');
-let usuarioActual = localStorage.getItem('usuarioActual') || null;
+const API_URL = "https://api.jsonbin.io/v3/b/68f8c37443b1c97be9780ca6";
+const MASTER_KEY = "$2a$10$kkNzvw3iucR3WD0BGh0Sd.4dkN.tZN1";
 
-function guardarDatos(){
-  localStorage.setItem('cuentas', JSON.stringify(cuentas));
-  localStorage.setItem('cedulas', JSON.stringify(cedulas));
+let usuarioActual = null;
+let cuentas = [];
+let cedulas = [];
+
+// ---- Funciones JSONBin ----
+async function cargarDatos() {
+  const res = await fetch(API_URL, { headers: { "X-Master-Key": MASTER_KEY } });
+  const data = await res.json();
+  return data.record || { cuentas: [], cedulas: [] };
 }
 
+async function guardarDatos(datos) {
+  await fetch(API_URL, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY },
+    body: JSON.stringify(datos)
+  });
+}
+
+// ---- Funciones de utilidades ----
 function generarNumDocumento(){return Math.floor(100000000 + Math.random()*900000000).toString();}
 function generarRutConDV(){
   let r=''; for(let i=0;i<(Math.random()<0.5?7:8);i++) r+=Math.floor(Math.random()*10);
@@ -109,6 +123,7 @@ function fechaHoyYVencimiento(){
           vencimiento:`${f(fv.getDate())}-${f(fv.getMonth()+1)}-${fv.getFullYear()}`};
 }
 
+// ---- Renderizado y flujo ----
 function mostrarInicio(){
   document.getElementById('loginCard').style.display='none';
   document.getElementById('pantallaInicio').style.display='block';
@@ -134,7 +149,7 @@ function crearCedulaHTML(dni,modo){
   if(modo==='moderador'){
     const btn=document.createElement('button');
     btn.textContent='Eliminar'; btn.className='btn red';
-    btn.onclick=()=>{cedulas.splice(cedulas.indexOf(dni),1);guardarDatos();renderizarDNI(modo);};
+    btn.onclick=async()=>{cedulas.splice(cedulas.indexOf(dni),1); await guardarDatos({cuentas,cedulas}); renderizarDNI(modo);};
     div.appendChild(btn);
   }
   return div;
@@ -153,116 +168,91 @@ function actualizarBotonVerC(usuario){
   document.getElementById('btnCrearC').style.display=!existe?'inline-block':'none';
 }
 
-// --- Login / Crear cuenta ---
-document.getElementById('btnLogin').onclick=()=>{
+// ---- Login ----
+document.getElementById('btnLogin').onclick=async()=>{
   const user=document.getElementById('loginUsuario').value.trim();
   const pass=document.getElementById('loginPass').value.trim();
-  if(!user||!pass) return alert('Completa ambos campos');
+  const datos=await cargarDatos();
+  cuentas=datos.cuentas; cedulas=datos.cedulas;
+
   const cuenta=cuentas.find(c=>c.usuario===user);
-  if(!cuenta){
-    if(confirm('No existe esa cuenta. ¿Deseas crearla?')){
-      cuentas.push({usuario:user,pass}); guardarDatos();
-      usuarioActual=user; localStorage.setItem('usuarioActual',user);
-      mostrarInicio();
-    }
-  } else {
-    if(cuenta.pass!==pass) return alert('Contraseña incorrecta');
-    usuarioActual=user; localStorage.setItem('usuarioActual',user);
-    mostrarInicio();
-  }
+  if(!cuenta){alert('Cuenta no existe. Crea una nueva.');return;}
+  if(cuenta.pass!==pass)return alert('Contraseña incorrecta.');
+  usuarioActual=user; mostrarInicio();
 };
 
-document.getElementById('btnCrearCuenta').onclick=()=>{
+document.getElementById('btnCrearCuenta').onclick=async()=>{
   const user=document.getElementById('loginUsuario').value.trim();
   const pass=document.getElementById('loginPass').value.trim();
-  if(!user||!pass) return alert('Completa usuario y contraseña');
-  if(cuentas.some(c=>c.usuario===user)) return alert('Esa cuenta ya existe.');
-  cuentas.push({usuario:user,pass}); guardarDatos();
-  usuarioActual=user; localStorage.setItem('usuarioActual',user);
-  mostrarInicio();
+  const datos=await cargarDatos(); cuentas=datos.cuentas; cedulas=datos.cedulas;
+
+  if(cuentas.some(c=>c.usuario===user))return alert('Esa cuenta ya existe.');
+  cuentas.push({usuario:user,pass}); await guardarDatos({cuentas,cedulas});
+  usuarioActual=user; mostrarInicio();
 };
 
-// Cerrar sesión
-document.getElementById('btnCerrarSesion').onclick=()=>{
-  localStorage.removeItem('usuarioActual');
-  usuarioActual=null;
-  document.getElementById('pantallaInicio').style.display='none';
-  document.getElementById('loginCard').style.display='block';
-};
+// ---- Crear Cédula ----
+document.getElementById('btnCrearC').onclick=()=>{document.getElementById('formDNI').style.display='block';document.getElementById('pantallaInicio').style.display='none';};
 
-// Crear Cédula
-document.getElementById('btnCrearC').onclick=()=>{
-  if(cedulas.some(d=>d.usuario===usuarioActual)) return alert('Ya tienes una cédula creada.');
-  document.getElementById('formDNI').style.display='block';
-  document.getElementById('pantallaInicio').style.display='none';
-};
-
-// Previsualizar foto
 document.getElementById('foto').addEventListener('change',e=>{
   const file=e.target.files[0]; const prev=document.getElementById('fotoPreviewForm');
-  if(!file) return prev.innerHTML='<span>Previsualización</span>';
-  const reader=new FileReader(); reader.onload=ev=>prev.innerHTML=`<img src="${ev.target.result}">`;
-  reader.readAsDataURL(file);
+  if(!file)return prev.innerHTML='<span>Previsualización</span>';
+  const reader=new FileReader(); reader.onload=ev=>prev.innerHTML=`<img src="${ev.target.result}">`; reader.readAsDataURL(file);
 });
 
-// Generar Cédula
-document.getElementById('btnGenerar').onclick=()=>{
+document.getElementById('btnGenerar').onclick=async()=>{
   const n=document.getElementById('nombres').value.trim();
   const a=document.getElementById('apellidos').value.trim();
-  const nac=document.getElementById('nacionalidad').value.trim()||'Chilena';
+  const nac=document.getElementById('nacionalidad').value.trim();
   const g=document.getElementById('genero').value;
   const f=document.getElementById('nacimiento').value;
   const file=document.getElementById('foto').files[0];
-  if(!n||!a||!f||!file) return alert('Completa todos los campos.');
+  if(!n||!a||!f||!file)return alert('Completa todos los campos.');
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async(e)=>{
     const fechas=fechaHoyYVencimiento();
-    cedulas.push({nombres:n,apellidos:a,nacionalidad:nac,genero:g,nacimiento:f,usuario:usuarioActual,
-      foto:e.target.result,rut:generarRutConDV(),numdoc:generarNumDocumento(),emision:fechas.emision,vencimiento:fechas.vencimiento});
-    guardarDatos();
+    const datos=await cargarDatos(); cuentas=datos.cuentas; cedulas=datos.cedulas;
+    if(cedulas.some(d=>d.usuario===usuarioActual))return alert('Ya tienes una cédula.');
+    cedulas.push({usuario:usuarioActual,nombres:n,apellidos:a,nacionalidad:nac,genero:g,nacimiento:f,foto:e.target.result,
+      rut:generarRutConDV(),numdoc:generarNumDocumento(),emision:fechas.emision,vencimiento:fechas.vencimiento});
+    await guardarDatos({cuentas,cedulas});
+    alert('Cédula creada correctamente ✅');
     document.getElementById('formDNI').style.display='none';
     document.getElementById('pantallaInicio').style.display='block';
     actualizarBotonVerC(usuarioActual);
-    alert('Cédula creada con éxito');
   };
   reader.readAsDataURL(file);
 };
 
-// Ver Cédula
+// ---- Ver Cédula ----
 document.getElementById('btnVerC').onclick=()=>{
   const dni=cedulas.find(d=>d.usuario===usuarioActual);
-  if(!dni) return alert('No tienes cédula.');
   const wrap=document.getElementById('cedulaWrap'); wrap.innerHTML=''; wrap.appendChild(crearCedulaHTML(dni,'usuario'));
 };
 
-// Modo Policía
-document.getElementById('btnPolicia').onclick=()=>{
-  const pass=prompt('Contraseña Policía:'); if(pass!=='CarabCl') return alert('Contraseña incorrecta');
-  document.getElementById('pantallaInicio').style.display='none'; document.getElementById('modoPolicia').style.display='block';
+// ---- Modo Policía ----
+document.getElementById('btnPolicia').onclick=async()=>{
+  const pass=prompt('Contraseña Policía:');
+  if(pass!=='CarabCl')return alert('Contraseña incorrecta.');
+  const datos=await cargarDatos(); cedulas=datos.cedulas;
+  document.getElementById('pantallaInicio').style.display='none';
+  document.getElementById('modoPolicia').style.display='block';
   renderizarDNI('policia');
 };
-document.getElementById('btnBuscarPol').onclick=()=>{
-  const f=document.getElementById('buscarUsuarioPol').value.trim(); renderizarDNI('policia',f);
-};
-document.getElementById('cerrarPolicia').onclick=()=>{
-  document.getElementById('modoPolicia').style.display='none'; document.getElementById('pantallaInicio').style.display='block';
-};
+document.getElementById('btnBuscarPol').onclick=()=>{renderizarDNI('policia',document.getElementById('buscarUsuarioPol').value.trim());};
+document.getElementById('cerrarPolicia').onclick=()=>{document.getElementById('modoPolicia').style.display='none';document.getElementById('pantallaInicio').style.display='block';};
 
-// Modo Moderador
-document.getElementById('btnModerador').onclick=()=>{
-  const pass=prompt('Contraseña Moderador:'); if(pass!=='Estrella2017') return alert('Contraseña incorrecta');
-  document.getElementById('pantallaInicio').style.display='none'; document.getElementById('modoModerador').style.display='block';
+// ---- Modo Moderador ----
+document.getElementById('btnModerador').onclick=async()=>{
+  const pass=prompt('Contraseña Moderador:');
+  if(pass!=='Estrella2017')return alert('Contraseña incorrecta.');
+  const datos=await cargarDatos(); cedulas=datos.cedulas;
+  document.getElementById('pantallaInicio').style.display='none';
+  document.getElementById('modoModerador').style.display='block';
   renderizarDNI('moderador');
 };
-document.getElementById('btnBuscarMod').onclick=()=>{
-  const f=document.getElementById('buscarUsuarioMod').value.trim(); renderizarDNI('moderador',f);
-};
-document.getElementById('cerrarMod').onclick=()=>{
-  document.getElementById('modoModerador').style.display='none'; document.getElementById('pantallaInicio').style.display='block';
-};
-
-// Iniciar sesión automática si hay cuenta
-if(usuarioActual) mostrarInicio();
+document.getElementById('btnBuscarMod').onclick=()=>{renderizarDNI('moderador',document.getElementById('buscarUsuarioMod').value.trim());};
+document.getElementById('cerrarMod').onclick=()=>{document.getElementById('modoModerador').style.display='none';document.getElementById('pantallaInicio').style.display='block';};
 </script>
 </body>
 </html>
