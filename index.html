@@ -31,7 +31,7 @@ input, select{width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px
 
 <h2>Registro Civil | Chile City RP</h2>
 
-<!-- Pantalla de Login -->
+<!-- Login -->
 <div id="loginCard" class="card">
   <h3>Inicio de Sesión</h3>
   <p>Ingresa tu usuario de Discord y una contraseña.<br><b style="color:red">No utilices tu contraseña de Discord.</b></p>
@@ -51,7 +51,7 @@ input, select{width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px
   <button class="btn red" id="btnCerrarSesion">Cerrar Sesión</button>
 </div>
 
-<!-- Formulario -->
+<!-- Formulario Cédula -->
 <div id="formDNI" class="card" style="display:none;">
   <h3>Formulario de Cédula</h3>
   <label>Nombres</label><input id="nombres" type="text">
@@ -85,29 +85,42 @@ input, select{width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px
 <div class="cedula-wrap" id="cedulaWrap"></div>
 
 <script>
-const API_URL = "https://api.jsonbin.io/v3/b/68f8c37443b1c97be9780ca6";
-const MASTER_KEY = "$2a$10$kkNzvw3iucR3WD0BGh0Sd.4dkN.tZN1";
+// CONFIGURACIÓN JSONBIN
+const API_KEY = 'TU_API_KEY';
+const BIN_ID = 'TU_BIN_ID';
+const BASE_URL = 'https://api.jsonbin.io/v3/b';
 
-let usuarioActual = null;
+// VARIABLES
 let cuentas = [];
 let cedulas = [];
+let usuarioActual = localStorage.getItem('usuarioActual') || null;
 
-// ---- Funciones JSONBin ----
+// FUNCIONES DE JSONBIN
 async function cargarDatos() {
-  const res = await fetch(API_URL, { headers: { "X-Master-Key": MASTER_KEY } });
-  const data = await res.json();
-  return data.record || { cuentas: [], cedulas: [] };
+  try {
+    const res = await fetch(`${BASE_URL}/${BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    const data = await res.json();
+    cuentas = data.record.cuentas || [];
+    cedulas = data.record.cedulas || [];
+  } catch(e){ console.error('Error al cargar datos', e); }
 }
 
-async function guardarDatos(datos) {
-  await fetch(API_URL, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY },
-    body: JSON.stringify(datos)
-  });
+async function guardarDatos() {
+  try {
+    await fetch(`${BASE_URL}/${BIN_ID}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY
+      },
+      body: JSON.stringify({ cuentas, cedulas })
+    });
+  } catch(e){ console.error('Error al guardar datos', e); }
 }
 
-// ---- Funciones de utilidades ----
+// UTILS
 function generarNumDocumento(){return Math.floor(100000000 + Math.random()*900000000).toString();}
 function generarRutConDV(){
   let r=''; for(let i=0;i<(Math.random()<0.5?7:8);i++) r+=Math.floor(Math.random()*10);
@@ -123,7 +136,7 @@ function fechaHoyYVencimiento(){
           vencimiento:`${f(fv.getDate())}-${f(fv.getMonth()+1)}-${fv.getFullYear()}`};
 }
 
-// ---- Renderizado y flujo ----
+// RENDER
 function mostrarInicio(){
   document.getElementById('loginCard').style.display='none';
   document.getElementById('pantallaInicio').style.display='block';
@@ -137,6 +150,7 @@ function crearCedulaHTML(dni,modo){
   <div class="rut">${dni.rut}</div>
   <div class="photo"><img src="${dni.foto}"></div>
   <div class="datos">
+    <div class="dato-line"><div class="label">Usuario:</div><div class="valor">${dni.usuario}</div></div>
     <div class="dato-line"><div class="label">Nombres:</div><div class="valor">${dni.nombres}</div></div>
     <div class="dato-line"><div class="label">Apellidos:</div><div class="valor">${dni.apellidos}</div></div>
     <div class="dato-line"><div class="label">Género:</div><div class="valor">${dni.genero}</div></div>
@@ -147,9 +161,12 @@ function crearCedulaHTML(dni,modo){
     <div class="dato-line"><div class="label">F. Vencimiento:</div><div class="valor">${dni.vencimiento}</div></div>
   </div>`;
   if(modo==='moderador'){
-    const btn=document.createElement('button');
-    btn.textContent='Eliminar'; btn.className='btn red';
-    btn.onclick=async()=>{cedulas.splice(cedulas.indexOf(dni),1); await guardarDatos({cuentas,cedulas}); renderizarDNI(modo);};
+    const btn=document.createElement('button'); btn.textContent='Eliminar'; btn.className='btn red';
+    btn.onclick=async()=>{
+      cedulas.splice(cedulas.indexOf(dni),1);
+      await guardarDatos();
+      renderizarDNI(modo);
+    };
     div.appendChild(btn);
   }
   return div;
@@ -159,7 +176,7 @@ function renderizarDNI(modo,filtro=''){
   const cont=document.getElementById(modo==='policia'?'dniPolicia':'dniModerador');
   cont.innerHTML='';
   cedulas.filter(d=>!filtro||d.usuario.includes(filtro))
-  .forEach(d=>cont.appendChild(crearCedulaHTML(d,modo)));
+         .forEach(d=>cont.appendChild(crearCedulaHTML(d,modo)));
 }
 
 function actualizarBotonVerC(usuario){
@@ -168,91 +185,117 @@ function actualizarBotonVerC(usuario){
   document.getElementById('btnCrearC').style.display=!existe?'inline-block':'none';
 }
 
-// ---- Login ----
+// LOGIN / CREAR CUENTA
 document.getElementById('btnLogin').onclick=async()=>{
   const user=document.getElementById('loginUsuario').value.trim();
   const pass=document.getElementById('loginPass').value.trim();
-  const datos=await cargarDatos();
-  cuentas=datos.cuentas; cedulas=datos.cedulas;
-
+  if(!user||!pass) return alert('Completa ambos campos');
   const cuenta=cuentas.find(c=>c.usuario===user);
-  if(!cuenta){alert('Cuenta no existe. Crea una nueva.');return;}
-  if(cuenta.pass!==pass)return alert('Contraseña incorrecta.');
-  usuarioActual=user; mostrarInicio();
+  if(!cuenta){
+    if(confirm('No existe esa cuenta. ¿Deseas crearla?')){
+      cuentas.push({usuario:user,pass}); await guardarDatos();
+      usuarioActual=user; localStorage.setItem('usuarioActual',user);
+      mostrarInicio();
+    }
+  } else {
+    if(cuenta.pass!==pass) return alert('Contraseña incorrecta');
+    usuarioActual=user; localStorage.setItem('usuarioActual',user);
+    mostrarInicio();
+  }
 };
 
 document.getElementById('btnCrearCuenta').onclick=async()=>{
   const user=document.getElementById('loginUsuario').value.trim();
   const pass=document.getElementById('loginPass').value.trim();
-  const datos=await cargarDatos(); cuentas=datos.cuentas; cedulas=datos.cedulas;
-
-  if(cuentas.some(c=>c.usuario===user))return alert('Esa cuenta ya existe.');
-  cuentas.push({usuario:user,pass}); await guardarDatos({cuentas,cedulas});
-  usuarioActual=user; mostrarInicio();
+  if(!user||!pass) return alert('Completa usuario y contraseña');
+  if(cuentas.some(c=>c.usuario===user)) return alert('Esa cuenta ya existe.');
+  cuentas.push({usuario:user,pass}); await guardarDatos();
+  usuarioActual=user; localStorage.setItem('usuarioActual',user);
+  mostrarInicio();
 };
 
-// ---- Crear Cédula ----
-document.getElementById('btnCrearC').onclick=()=>{document.getElementById('formDNI').style.display='block';document.getElementById('pantallaInicio').style.display='none';};
+// CERRAR SESIÓN
+document.getElementById('btnCerrarSesion').onclick=()=>{
+  localStorage.removeItem('usuarioActual');
+  usuarioActual=null;
+  document.getElementById('pantallaInicio').style.display='none';
+  document.getElementById('loginCard').style.display='block';
+};
 
+// CREAR CÉDULA
+document.getElementById('btnCrearC').onclick=()=>{
+  if(cedulas.some(d=>d.usuario===usuarioActual)) return alert('Ya tienes una cédula creada.');
+  document.getElementById('formDNI').style.display='block';
+  document.getElementById('pantallaInicio').style.display='none';
+};
+
+// PREVISUALIZAR FOTO
 document.getElementById('foto').addEventListener('change',e=>{
   const file=e.target.files[0]; const prev=document.getElementById('fotoPreviewForm');
-  if(!file)return prev.innerHTML='<span>Previsualización</span>';
-  const reader=new FileReader(); reader.onload=ev=>prev.innerHTML=`<img src="${ev.target.result}">`; reader.readAsDataURL(file);
+  if(!file) return prev.innerHTML='<span>Previsualización</span>';
+  const reader=new FileReader(); reader.onload=ev=>prev.innerHTML=`<img src="${ev.target.result}">`;
+  reader.readAsDataURL(file);
 });
 
+// GENERAR CÉDULA
 document.getElementById('btnGenerar').onclick=async()=>{
   const n=document.getElementById('nombres').value.trim();
   const a=document.getElementById('apellidos').value.trim();
-  const nac=document.getElementById('nacionalidad').value.trim();
+  const nac=document.getElementById('nacionalidad').value.trim()||'Chilena';
   const g=document.getElementById('genero').value;
   const f=document.getElementById('nacimiento').value;
   const file=document.getElementById('foto').files[0];
-  if(!n||!a||!f||!file)return alert('Completa todos los campos.');
+  if(!n||!a||!f||!file) return alert('Completa todos los campos.');
   const reader=new FileReader();
-  reader.onload=async(e)=>{
+  reader.onload=async e=>{
     const fechas=fechaHoyYVencimiento();
-    const datos=await cargarDatos(); cuentas=datos.cuentas; cedulas=datos.cedulas;
-    if(cedulas.some(d=>d.usuario===usuarioActual))return alert('Ya tienes una cédula.');
-    cedulas.push({usuario:usuarioActual,nombres:n,apellidos:a,nacionalidad:nac,genero:g,nacimiento:f,foto:e.target.result,
-      rut:generarRutConDV(),numdoc:generarNumDocumento(),emision:fechas.emision,vencimiento:fechas.vencimiento});
-    await guardarDatos({cuentas,cedulas});
-    alert('Cédula creada correctamente ✅');
+    cedulas.push({usuario:usuarioActual,nombres:n,apellidos:a,nacionalidad:nac,genero:g,nacimiento:f,
+      foto:e.target.result,rut:generarRutConDV(),numdoc:generarNumDocumento(),emision:fechas.emision,vencimiento:fechas.vencimiento});
+    await guardarDatos();
     document.getElementById('formDNI').style.display='none';
     document.getElementById('pantallaInicio').style.display='block';
     actualizarBotonVerC(usuarioActual);
+    alert('Cédula creada con éxito');
   };
   reader.readAsDataURL(file);
 };
 
-// ---- Ver Cédula ----
+// VER CÉDULA
 document.getElementById('btnVerC').onclick=()=>{
   const dni=cedulas.find(d=>d.usuario===usuarioActual);
+  if(!dni) return alert('No tienes cédula.');
   const wrap=document.getElementById('cedulaWrap'); wrap.innerHTML=''; wrap.appendChild(crearCedulaHTML(dni,'usuario'));
 };
 
-// ---- Modo Policía ----
-document.getElementById('btnPolicia').onclick=async()=>{
-  const pass=prompt('Contraseña Policía:');
-  if(pass!=='CarabCl')return alert('Contraseña incorrecta.');
-  const datos=await cargarDatos(); cedulas=datos.cedulas;
-  document.getElementById('pantallaInicio').style.display='none';
-  document.getElementById('modoPolicia').style.display='block';
+// MODO POLICÍA
+document.getElementById('btnPolicia').onclick=()=>{
+  const pass=prompt('Contraseña Policía:'); if(pass!=='CarabCl') return alert('Contraseña incorrecta');
+  document.getElementById('pantallaInicio').style.display='none'; document.getElementById('modoPolicia').style.display='block';
   renderizarDNI('policia');
 };
-document.getElementById('btnBuscarPol').onclick=()=>{renderizarDNI('policia',document.getElementById('buscarUsuarioPol').value.trim());};
-document.getElementById('cerrarPolicia').onclick=()=>{document.getElementById('modoPolicia').style.display='none';document.getElementById('pantallaInicio').style.display='block';};
+document.getElementById('btnBuscarPol').onclick=()=>{
+  const f=document.getElementById('buscarUsuarioPol').value.trim(); renderizarDNI('policia',f);
+};
+document.getElementById('cerrarPolicia').onclick=()=>{
+  document.getElementById('modoPolicia').style.display='none'; document.getElementById('pantallaInicio').style.display='block';
+};
 
-// ---- Modo Moderador ----
-document.getElementById('btnModerador').onclick=async()=>{
-  const pass=prompt('Contraseña Moderador:');
-  if(pass!=='Estrella2017')return alert('Contraseña incorrecta.');
-  const datos=await cargarDatos(); cedulas=datos.cedulas;
-  document.getElementById('pantallaInicio').style.display='none';
-  document.getElementById('modoModerador').style.display='block';
+// MODO MODERADOR
+document.getElementById('btnModerador').onclick=()=>{
+  const pass=prompt('Contraseña Moderador:'); if(pass!=='Estrella2017') return alert('Contraseña incorrecta');
+  document.getElementById('pantallaInicio').style.display='none'; document.getElementById('modoModerador').style.display='block';
   renderizarDNI('moderador');
 };
-document.getElementById('btnBuscarMod').onclick=()=>{renderizarDNI('moderador',document.getElementById('buscarUsuarioMod').value.trim());};
-document.getElementById('cerrarMod').onclick=()=>{document.getElementById('modoModerador').style.display='none';document.getElementById('pantallaInicio').style.display='block';};
+document.getElementById('btnBuscarMod').onclick=()=>{
+  const f=document.getElementById('buscarUsuarioMod').value.trim(); renderizarDNI('moderador',f);
+};
+document.getElementById('cerrarMod').onclick=()=>{
+  document.getElementById('modoModerador').style.display='none'; document.getElementById('pantallaInicio').style.display='block';
+};
+
+// CARGAR DATOS AL INICIO
+(async()=>{ await cargarDatos(); if(usuarioActual) mostrarInicio(); })();
 </script>
+
 </body>
 </html>
