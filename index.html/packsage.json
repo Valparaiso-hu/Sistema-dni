@@ -1,5 +1,5 @@
 {
-  "name": "mi-proyecto",
+  "name": "html.index",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -13,4 +13,5 @@
     "cors": "^2.8.5",
     "body-parser": "^1.19.0"
   }
+
 }
